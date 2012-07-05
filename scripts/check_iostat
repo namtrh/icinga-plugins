@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Version 0.0.2 - Jan/2009
 # Changes: added device verification
@@ -15,12 +15,21 @@
 #
 # by Philipp Niedziela - pn@pn-it.com
 # 
+# --------------------------------------
+# Version 0.0.4 - Apr/2012
+# Changes:
+#  - /bin/echo -e is required
+#  - sh does not know the function prefix
+#  - further errors, change interpreter to bash
+#
+# by Michael Friedrich - michael.friedrich@univie.ac.at
+#
 
 iostat=`which iostat 2>/dev/null`
 bc=`which bc 2>/dev/null`
 
-function help {
-echo -e "\n\tThis plugin shows the I/O usage of the specified disk, using the iostat external program.\n\tIt prints three statistics: Transactions per second (tps), Kilobytes per second\n\tread from the disk (KB_read/s) and and written to the disk (KB_written/s)\n\n$0:\n\t-d <disk>\t\tDevice to be checked (without the full path, eg. sda)\n\t-c <tps>,<read>,<wrtn>\tSets the CRITICAL level for tps, KB_read/s and KB_written/s, respectively\n\t-w <tps>,<read>,<wrtn>\tSets the WARNING level for tps, KB_read/s and KB_written/s, respectively\n"
+help () {
+/bin/echo -e "\n\tThis plugin shows the I/O usage of the specified disk, using the iostat external program.\n\tIt prints three statistics: Transactions per second (tps), Kilobytes per second\n\tread from the disk (KB_read/s) and and written to the disk (KB_written/s)\n\n$0:\n\t-d <disk>\t\tDevice to be checked (without the full path, eg. sda)\n\t-c <tps>,<read>,<wrtn>\tSets the CRITICAL level for tps, KB_read/s and KB_written/s, respectively\n\t-w <tps>,<read>,<wrtn>\tSets the WARNING level for tps, KB_read/s and KB_written/s, respectively\n"
 	exit -1
 }
 
