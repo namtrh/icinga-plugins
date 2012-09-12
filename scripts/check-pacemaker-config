@@ -1,0 +1,73 @@
+#!/usr/bin/perl
+#
+# check-pacemaker-config
+#
+# Copyright © 2011-2012 Michael Friedrich <michael.friedrich@gmail.com>
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+#working dir
+my $cachedir = '/var/cache/pacemaker';
+#save this once with # crm configure save /var/cache/pacemaker/pacemaker-config.template
+my $templatecfgfile = $cachedir.'/'.'pacemaker-config.template';
+#current dumped config
+my $cfgfile = $cachedir.'/'.'pacemaker-config';
+#nsca information
+my $icinga_nscahost = 'youricingahost';
+my $icinga_nscacfg = '/etc/send_nsca.cfg';
+#icinga information
+my $icinga_host = `hostname -f`;
+chomp $icinga_host;
+my $icinga_svc = 'db-pacemaker-config';
+my $icinga_status = 0; # OK
+my $icinga_output = "OK";
+my $icinga_perfdata = "lines=0";
+my $icinga_longoutput = "";
+my $icinga_complete_output = "";
+my $lines = 0;
+#check if there was a previous leftover
+if(-e $cfgfile) {
+        unlink($cfgfile);
+}
+#dump it
+`/usr/sbin/crm configure save $cfgfile`;
+#check if the dump happened and then diff, bail out unknown if not
+if(-e $cfgfile) {
+        #diff it to the teplate, e.g. gotten from git
+        $diff = `diff $templatecfgfile $cfgfile`;
+        #do something if the diff is there
+        if ($diff ne "") {
+                #print "diff is $diff";
+                # FIXME do something with longoutput - current NSCA does not support multiline
+                $icinga_longoutput = `echo "$diff" | egrep "^<|>"`;
+                $lines = $icinga_longoutput =~ tr/\n//;
+                $icinga_status = 2; # CRITICAL
+                $icinga_output = "CRITICAL - config differs ($lines)!";
+                $icinga_perfdata = "lines=$lines";
+                # FIXME - escape for send_nsca
+                #$icinga_longoutput =~ s/\R//g;
+		$icinga_longoutput = "";
+        }
+} else {
+        $icinga_status = 3; # UNKNOWN
+        #print "could not diff this time";
+        $icinga_output = "UNKNOWN - no diff possible";
+        $icinga_perfdata = "lines=0";
+        $icinga_longoutput = "";
+}
+
+$icinga_complete_output = "$icinga_output|$icinga_perfdata\n$icinga_longoutput";
+`echo "$icinga_host\t$icinga_svc\t$icinga_status\t$icinga_complete_output\n" | /usr/sbin/send_nsca -H $icinga_nscahost -c $icinga_nscacfg`;
+print "sending the following to send_nsca...\n";
+print "$icinga_host\t$icinga_svc\t$icinga_status\t$icinga_complete_output\n";
