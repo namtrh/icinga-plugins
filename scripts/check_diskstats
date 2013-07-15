@@ -4,16 +4,17 @@
 # taken from:
 # http://www.monitoring-portal.org/wbb/index.php?page=Thread&postID=152833#post152833
 
-
 SLEEP="${2:-5}"
 
 if [ "$1" = "" ]; then
    echo "Which disk/partition, please?"
    exit 3
 fi
-if [ "`uname -s`" != "Linux" -o "`uname -r | sed -e 's/^\(....\).*/\1/'`" != "2.6." ]; then
-   echo "CRITICAL: I need a 2.6 Linux kernel's /proc/diskstats to parse"
-   exit 3
+if [ "`uname -s`" != "Linux" ]; then
+    if [ "`uname -r | sed -e 's/^\(....\).*/\1/'`" != "2.6." -a "`uname -r | sed -e 's/^\(..\).*/\1/'`" != "3." ]; then
+        echo "CRITICAL: I need a >= 2.6 Linux kernel's /proc/diskstats to parse"
+        exit 3
+    fi
 fi
 
 PERFDATA="rate_interval=${SLEEP}s"
