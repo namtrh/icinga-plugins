@@ -1,0 +1,86 @@
+#!/bin/sh
+
+# Copyright (c) 2011, Jochen Bern
+# taken from:
+# http://www.monitoring-portal.org/wbb/index.php?page=Thread&postID=152833#post152833
+
+
+SLEEP="${2:-5}"
+
+if [ "$1" = "" ]; then
+   echo "Which disk/partition, please?"
+   exit 3
+fi
+if [ "`uname -s`" != "Linux" -o "`uname -r | sed -e 's/^\(....\).*/\1/'`" != "2.6." ]; then
+   echo "CRITICAL: I need a 2.6 Linux kernel's /proc/diskstats to parse"
+   exit 3
+fi
+
+PERFDATA="rate_interval=${SLEEP}s"
+
+READOPS=0
+READSEC=0
+READTIM=0
+WRITEOPS=0
+WRITESEC=0
+WRITETIM=0
+IOCNT=0
+IOTIM=0
+
+MODE="abs_"
+DIVIDER=1
+
+ONELINE=`awk '{ if ($3=="'"$1"'") print; }' /proc/diskstats`
+
+if [ "$ONELINE" = "" ]; then
+   echo "CRITICAL: Cannot find disk/partition $1 in /proc/diskstats"
+   exit 2
+fi
+
+PERFDATA="$PERFDATA ${MODE}total_reads=`echo $ONELINE | awk '{ printf "%u",($4-'$READOPS')/'$DIVIDER'; }'`"
+READOPS=`echo $ONELINE | awk '{ printf "%u",$4; }'`
+PERFDATA="$PERFDATA ${MODE}sector_reads=`echo $ONELINE | awk '{ printf "%u",($6-'$READSEC')/'$DIVIDER'; }'`"
+READSEC=`echo $ONELINE | awk '{ printf "%u",$6; }'`
+PERFDATA="$PERFDATA ${MODE}time_reads=`echo $ONELINE | awk '{ printf "%u",($7-'$READTIM')/'$DIVIDER'; }'`ms"
+READTIM=`echo $ONELINE | awk '{ printf "%u",$7; }'`
+PERFDATA="$PERFDATA ${MODE}total_writes=`echo $ONELINE | awk '{ printf "%u",($8-'$WRITEOPS')/'$DIVIDER'; }'`"
+WRITEOPS=`echo $ONELINE | awk '{ printf "%u",$8; }'`
+PERFDATA="$PERFDATA ${MODE}sector_writes=`echo $ONELINE | awk '{ printf "%u",($10-'$WRITESEC')/'$DIVIDER'; }'`"
+WRITESEC=`echo $ONELINE | awk '{ printf "%u",$10; }'`
+PERFDATA="$PERFDATA ${MODE}time_writes=`echo $ONELINE | awk '{ printf "%u",($11-'$WRITETIM')/'$DIVIDER'; }'`ms"
+WRITETIM=`echo $ONELINE | awk '{ printf "%u",$11; }'`
+PERFDATA="$PERFDATA ${MODE}curr_io=`echo $ONELINE | awk '{ printf "%u",($12-'$IOCNT')/'$DIVIDER'; }'`"
+IOCNT=`echo $ONELINE | awk '{ printf "%u",$12; }'`
+PERFDATA="$PERFDATA ${MODE}time_io=`echo $ONELINE | awk '{ printf "%u",($13-'$IOTIM')/'$DIVIDER'; }'`ms"
+IOTIM=`echo $ONELINE | awk '{ printf "%u",$13; }'`
+
+#echo "DEBUG: time_reads $READTIM time_writes $WRITETIM time_io $IOTIM"
+
+sleep $SLEEP
+
+MODE="rate_"
+DIVIDER=$SLEEP
+
+ONELINE=`awk '{ if ($3=="'"$1"'") print; }' /proc/diskstats`
+
+PERFDATA="$PERFDATA ${MODE}total_reads=`echo $ONELINE | awk '{ printf "%f",($4-'$READOPS')/'$DIVIDER'; }'`"
+READOPS=`echo $ONELINE | awk '{ printf "%f",$4; }'`
+PERFDATA="$PERFDATA ${MODE}sector_reads=`echo $ONELINE | awk '{ printf "%f",($6-'$READSEC')/'$DIVIDER'; }'`"
+READSEC=`echo $ONELINE | awk '{ printf "%f",$6; }'`
+PERFDATA="$PERFDATA ${MODE}time_reads=`echo $ONELINE | awk '{ printf "%f",($7-'$READTIM')/'$DIVIDER'; }'`ms"
+READTIM=`echo $ONELINE | awk '{ printf "%f",$7; }'`
+PERFDATA="$PERFDATA ${MODE}total_writes=`echo $ONELINE | awk '{ printf "%f",($8-'$WRITEOPS')/'$DIVIDER'; }'`"
+WRITEOPS=`echo $ONELINE | awk '{ printf "%f",$8; }'`
+PERFDATA="$PERFDATA ${MODE}sector_writes=`echo $ONELINE | awk '{ printf "%f",($10-'$WRITESEC')/'$DIVIDER'; }'`"
+WRITESEC=`echo $ONELINE | awk '{ printf "%f",$10; }'`
+PERFDATA="$PERFDATA ${MODE}time_writes=`echo $ONELINE | awk '{ printf "%f",($11-'$WRITETIM')/'$DIVIDER'; }'`ms"
+WRITETIM=`echo $ONELINE | awk '{ printf "%f",$11; }'`
+#PERFDATA="$PERFDATA ${MODE}curr_io=`echo $ONELINE | awk '{ printf "%f",($12-'$IOCNT')/'$DIVIDER'; }'`"
+IOCNT=`echo $ONELINE | awk '{ printf "%f",$12; }'`
+PERFDATA="$PERFDATA ${MODE}time_io=`echo $ONELINE | awk '{ printf "%f",($13-'$IOTIM')/'$DIVIDER'; }'`ms"
+IOTIM=`echo $ONELINE | awk '{ printf "%f",$13; }'`
+
+#echo "DEBUG: time_reads $READTIM time_writes $WRITETIM time_io $IOTIM"
+
+echo "OK - Statistics read|$PERFDATA"
+exit 0
